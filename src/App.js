@@ -1,15 +1,24 @@
 import logo from './logo.svg';
 import './App.css';
+import { useState } from "react";
 function Header(props) { //사용자 정의 태그(컴포넌트)
   return <header>
-    <h1><a href="/">{props.title}</a></h1>
+    <h1><a href="/" onClick={(event) => {
+      event.preventDefault(); //페이지 리로드 방지 
+      props.onChangeMode();
+    }}>{props.title}</a></h1>
   </header>
 }
 function Nav(props) { //사용자 정의 태그(컴포넌트)
   const lis = []
-  for(let i = 0; i < props.topics.length; i++) {
+  for (let i = 0; i < props.topics.length; i++) {
     let t = props.topics[i];
-    lis.push(<li key={t.id}><a href={'/read/' + t.id}>{t.title}</a></li>)
+    lis.push(<li key={t.id}>
+      <a id={t.id} href={'/read/' + t.id} onClick={(event) => {
+        event.preventDefault();
+        props.onChangeMode(Number(event.target.id));
+      }}>{t.title}</a>
+    </li>)
   }
   return <nav>
     <ol>
@@ -23,17 +32,120 @@ function Article(props) { //사용자 정의 태그(컴포넌트)
     {props.body}
   </article>
 }
+function Create(props) { // App함수에서 사용된 Creact컴포넌트 속성 값 사용
+  return <article>
+    <h2>Create</h2>
+    <form onSubmit={event => { 
+      event.preventDefault(); //리로드 방지
+      const title = event.target.title.value; // input name이 title인 값을 변수에 저장
+      const body = event.target.body.value; // input name이 body인 값을 변수에 저장
+      props.onCreate(title, body);
+    }}>
+      <p><input type='text' name='title' placeholder='title'/></p>
+      <p><textarea name='body' placeholder='body'/></p>
+      <p><input type='submit' value='create'></input> </p>
+    </form>
+  </article>
+}
+function Update(props) {
+  const [title, setTitle] = useState(props.title);
+  const [body, setBody] = useState(props.body);
+  return <article>
+    <h2>Update</h2>
+    <form onSubmit={event => { 
+      event.preventDefault(); //리로드 방지
+      const title = event.target.title.value; // input name이 title인 값을 변수에 저장
+      const body = event.target.body.value; // input name이 body인 값을 변수에 저장
+      props.onUpdate(title, body);
+    }}>
+      <p><input type='text' name='title' placeholder='title' value={title} onChange = {(event) => {
+        setTitle(event.target.value)
+      }}/></p>
+      <p><textarea name='body' placeholder='body' value={body} onChange = {(event) => {
+        setBody(event.target.value)
+      }}/></p>
+      <p><input type='submit' value='Update'></input> </p>
+    </form>
+  </article>
+}
 function App() {
-  const topics = [
-    {id:1, title:'html', body:'html is ...'},
-    {id:2, title:'css', body:'css is ...'},
-    {id:3, title:'js', body:'js is ...'}
-  ]
+  // const _mode = useState("WELCOME");
+  // const mode = _mode[0];
+  // const setMode = _mode[1];
+  const [mode, setMode] = useState("WELCOME"); //위의 3줄 코드와 같은 코드임
+  const [id, setId] = useState(null);
+  const [nextId, setNextId] = useState(4);
+  const [topics, setTopics] = useState([
+    { id: 1, title: 'html', body: 'html is ...' },
+    { id: 2, title: 'css', body: 'css is ...' },
+    { id: 3, title: 'js', body: 'js is ...' }
+  ])
+  let content = null;
+  let contextControl = null;
+  if (mode === "WELCOME") {
+    content = <Article title="Welcome" body="Hello, WEB"></Article>
+  } else if (mode === "READ") {
+    let title, body = null;
+    for (let i = 0; i < topics.length; i++) {
+      if (topics[i].id === id) {
+        title = topics[i].title;
+        body = topics[i].body;
+      }
+    }
+    content = <Article title={title} body={body}></Article>
+    contextControl = <li><a href={'/update' + id} onClick = {(event) => {
+      event.preventDefault();
+      setMode('UPDATE');
+    }}>Update</a></li>
+  }else if(mode === "CREATE") {
+    content = <Create onCreate={(title, body) => {
+      const newTopic = {id:nextId, title:title, body:body}
+      const newTopics = [...topics] //topics 복제본 생성
+      newTopics.push(newTopic);
+      setTopics(newTopics);
+      setMode('READ');
+      setId(nextId);
+      setNextId(nextId + 1);
+    }}></Create>
+  }else if(mode === "UPDATE") {
+    let title, body = null;
+    for (let i = 0; i < topics.length; i++) {
+      if (topics[i].id === id) {
+        title = topics[i].title;
+        body = topics[i].body;
+      }
+    }
+    content = <Update title={title} body={body} onUpdate = {(title, body) => {
+      const newTopics = [...topics]
+      const updatedTopic = {id: id,title: title, body: body}
+      for(let i = 0; i < newTopics.length; i++) {
+        if(newTopics[i].id === id) {
+          newTopics[i] = updatedTopic;
+          break;
+        }
+      }
+      setTopics(newTopics);
+      setMode("READ");
+      
+    }}></Update>
+  }
   return (
     <div>
-      <Header title="WEB"></Header> 
-      <Nav topics={topics}></Nav>
-      <Article title="Welcome" body="Hello, WEB"></Article>
+      <Header title="WEB" onChangeMode={() => {
+        setMode("WELCOME");
+      }}></Header>
+      <Nav topics={topics} onChangeMode={(id) => {
+        setMode("READ");
+        setId(id);
+      }}></Nav>
+      {content}
+      <ul>
+        <li><a href='/create' onClick = {(event) => {
+          event.preventDefault();
+          setMode('CREATE');
+        }}>Create</a></li>
+        {contextControl}
+      </ul>
     </div>
   );
 }
